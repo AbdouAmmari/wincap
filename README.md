@@ -39,9 +39,40 @@ cd wincap
 
 2. Install dependencies:
 
+**For Linux:**
 ```bash
-pip install -r requirements.txt
+pip install pyscreenshot python-xlib psutil pillow keyboard
+# Also ensure X11 development libraries are installed:
+# Ubuntu/Debian: sudo apt-get install python3-dev libx11-dev
+# Fedora/RHEL: sudo dnf install python3-devel libX11-devel
 ```
+
+**For Windows:**
+```bash
+pip install pywinauto pygetwindow pillow keyboard
+```
+
+**Common dependencies:**
+```bash
+pip install pillow keyboard
+```
+
+## Usage
+
+The usage is identical on both platforms:
+
+```bash
+python window_monitor.py
+```
+
+The script will:
+1. Detect your operating system
+2. Load appropriate platform-specific modules
+3. Show available windows with their dimensions
+4. Allow you to select and monitor any window
+5. Capture screenshots and create GIFs based on keyboard activity
+
+This version maintains all the advanced features from the previous version while adding full Linux compatibility through X11 integration.
 
 > 🔒 On Windows, **run as Administrator** to allow global keyboard hooks.
 
