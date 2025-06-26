@@ -4,13 +4,13 @@ import time
 import datetime
 import threading
 import platform
+import subprocess
 from pathlib import Path
 from PIL import ImageGrab, Image
 import keyboard
 import json
 from typing import List, Optional, Tuple, Dict, Any
 import logging
-import subprocess
 
 # Platform-specific imports
 if platform.system() == "Windows":
@@ -77,7 +77,7 @@ class CrossPlatformWindowManager:
         return windows
     
     def _get_windows_linux(self) -> List[Dict[str, Any]]:
-        """Get windows on Linux platform using X11."""
+        """Get windows on Linux platform using X11 with improved coordinate handling."""
         windows = []
         try:
             # Get all windows
@@ -120,20 +120,58 @@ class CrossPlatformWindowManager:
                     if not title.strip():
                         continue
                     
-                    # Get absolute position
-                    translated = window.translate_coords(self.root, 0, 0)
-                    x, y = translated.x, translated.y
+                    # Get absolute position with better coordinate calculation
+                    try:
+                        translated = window.translate_coords(self.root, 0, 0)
+                        x, y = translated.x, translated.y
+                        
+                        # Handle negative coordinates (common in Linux)
+                        if x < 0:
+                            x = 0
+                        if y < 0:
+                            y = 0
+                        
+                        # Get frame extents to account for window decorations
+                        try:
+                            frame_prop = window.get_full_property(
+                                self.display.intern_atom('_NET_FRAME_EXTENTS'),
+                                X.AnyPropertyType
+                            )
+                            if frame_prop and len(frame_prop.value) >= 4:
+                                left, right, top, bottom = frame_prop.value[:4]
+                                # Adjust coordinates to account for window decorations
+                                x = max(0, x - left)
+                                y = max(0, y - top)
+                                width = geom.width + left + right
+                                height = geom.height + top + bottom
+                            else:
+                                width = geom.width
+                                height = geom.height
+                        except:
+                            width = geom.width
+                            height = geom.height
+                        
+                    except Exception as e:
+                        logging.debug(f"Coordinate calculation failed for window {window_id}: {e}")
+                        x, y = geom.x, geom.y
+                        width, height = geom.width, geom.height
+                    
+                    # Ensure coordinates are reasonable
+                    if x < 0 or y < 0 or width <= 0 or height <= 0:
+                        continue
                     
                     windows.append({
                         'title': title.strip(),
                         'handle': window_id,
-                        'rect': (x, y, x + geom.width, y + geom.height),
-                        'width': geom.width,
-                        'height': geom.height,
-                        'platform_obj': window
+                        'rect': (x, y, x + width, y + height),
+                        'width': width,
+                        'height': height,
+                        'platform_obj': window,
+                        'raw_geom': (geom.x, geom.y, geom.width, geom.height)  # Store raw geometry for debugging
                     })
                     
                 except Exception as e:
+                    logging.debug(f"Error processing window {window_id}: {e}")
                     continue
                     
         except Exception as e:
@@ -166,10 +204,78 @@ class CrossPlatformWindowManager:
             if self.platform == "Windows":
                 return ImageGrab.grab(bbox=rect)
             elif self.platform == "Linux":
-                return ImageGrab_Linux.grab(bbox=rect)
+                return self._take_linux_screenshot(rect)
         except Exception as e:
             logging.error(f"Error taking screenshot: {e}")
             return None
+    
+    def _take_linux_screenshot(self, rect: Tuple[int, int, int, int]) -> Optional[Image.Image]:
+        """Enhanced Linux screenshot with multiple fallback methods."""
+        x1, y1, x2, y2 = rect
+        
+        # Method 1: Try pyscreenshot with bbox
+        try:
+            import pyscreenshot as ImageGrab_Linux
+            img = ImageGrab_Linux.grab(bbox=(x1, y1, x2, y2))
+            if img and img.size[0] > 0 and img.size[1] > 0:
+                return img
+        except Exception as e:
+            logging.warning(f"pyscreenshot bbox method failed: {e}")
+        
+        # Method 2: Try full screen capture then crop
+        try:
+            import pyscreenshot as ImageGrab_Linux
+            full_img = ImageGrab_Linux.grab()
+            if full_img:
+                # Ensure coordinates are within screen bounds
+                screen_width, screen_height = full_img.size
+                x1 = max(0, min(x1, screen_width))
+                y1 = max(0, min(y1, screen_height))
+                x2 = max(x1, min(x2, screen_width))
+                y2 = max(y1, min(y2, screen_height))
+                
+                if x2 > x1 and y2 > y1:
+                    cropped = full_img.crop((x1, y1, x2, y2))
+                    return cropped
+        except Exception as e:
+            logging.warning(f"pyscreenshot crop method failed: {e}")
+        
+        # Method 3: Try using scrot command line tool
+        try:
+            import tempfile
+            import subprocess
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+                cmd = ['scrot', '-a', f'{x1},{y1},{x2-x1},{y2-y1}', tmp_file.name]
+                result = subprocess.run(cmd, capture_output=True, timeout=5)
+                if result.returncode == 0:
+                    img = Image.open(tmp_file.name)
+                    os.unlink(tmp_file.name)  # Clean up temp file
+                    return img
+        except Exception as e:
+            logging.warning(f"scrot method failed: {e}")
+        
+        # Method 4: Try using gnome-screenshot
+        try:
+            import tempfile
+            import subprocess
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+                cmd = ['gnome-screenshot', '-a', '-f', tmp_file.name]
+                # This method requires user interaction, so we'll skip it for automation
+                pass
+        except Exception as e:
+            logging.warning(f"gnome-screenshot method failed: {e}")
+        
+        # Method 5: Try using ImageGrab directly (may work on some systems)
+        try:
+            from PIL import ImageGrab
+            img = ImageGrab.grab(bbox=(x1, y1, x2, y2))
+            if img and img.size[0] > 0 and img.size[1] > 0:
+                return img
+        except Exception as e:
+            logging.warning(f"PIL ImageGrab method failed: {e}")
+        
+        logging.error("All Linux screenshot methods failed")
+        return None
 
 class WindowMonitor:
     def __init__(self):
@@ -286,14 +392,24 @@ class WindowMonitor:
                 print("An error occurred. Please try again.")
     
     def take_screenshot(self, tag: str = "") -> Optional[str]:
-        """Take screenshot with cross-platform support."""
+        """Take screenshot with enhanced Linux support and debugging."""
         try:
             with self.screenshot_lock:
                 if not self.target_rect:
                     return None
                 
+                # Debug information for Linux
+                if self.platform == "Linux":
+                    self.logger.debug(f"Attempting screenshot with rect: {self.target_rect}")
+                
                 img = self.wm.take_window_screenshot(self.target_rect)
                 if not img:
+                    self.logger.error("Screenshot returned None")
+                    return None
+                
+                # Validate image
+                if img.size[0] <= 0 or img.size[1] <= 0:
+                    self.logger.error(f"Invalid image size: {img.size}")
                     return None
                 
                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
@@ -303,10 +419,10 @@ class WindowMonitor:
                 if img.mode != 'RGB':
                     img = img.convert('RGB')
                 
-                img.save(filename, optimize=True)
+                img.save(filename, optimize=True, quality=85)
                 self.saved_screenshots.append(str(filename))
                 
-                self.logger.info(f"Screenshot saved: {filename.name}")
+                self.logger.info(f"Screenshot saved: {filename.name} (size: {img.size})")
                 
                 # Clean up old screenshots
                 if len(self.saved_screenshots) > self.gif_frame_count * 3:
@@ -324,6 +440,8 @@ class WindowMonitor:
                 
         except Exception as e:
             self.logger.error(f"Error taking screenshot: {e}")
+            import traceback
+            self.logger.debug(f"Screenshot error traceback: {traceback.format_exc()}")
             return None
     
     def make_gif(self, frame_paths: List[str]):
@@ -460,29 +578,73 @@ class WindowMonitor:
         print(f"{'='*70}")
     
     def check_dependencies(self):
-        """Check platform-specific dependencies."""
+        """Check platform-specific dependencies with better error messages."""
         missing = []
         
         if self.platform == "Linux":
+            # Check Python packages
             try:
                 import pyscreenshot
+            except ImportError:
+                missing.append("pyscreenshot: pip install pyscreenshot")
+            
+            try:
                 import Xlib
+            except ImportError:
+                missing.append("python-xlib: pip install python-xlib")
+            
+            try:
                 import psutil
-            except ImportError as e:
-                missing.append("Linux: pip install pyscreenshot python-xlib psutil")
+            except ImportError:
+                missing.append("psutil: pip install psutil")
+            
+            # Check for alternative screenshot tools
+            screenshot_tools = []
+            try:
+                subprocess.run(['scrot', '--version'], capture_output=True, timeout=2)
+                screenshot_tools.append("scrot")
+            except:
+                pass
+            
+            try:
+                subprocess.run(['gnome-screenshot', '--version'], capture_output=True, timeout=2)
+                screenshot_tools.append("gnome-screenshot")
+            except:
+                pass
+            
+            # Check X11 display
+            try:
+                if not os.environ.get('DISPLAY'):
+                    missing.append("X11 DISPLAY variable not set. Try: export DISPLAY=:0")
+            except:
+                pass
+            
+            if screenshot_tools:
+                print(f"✓ Found screenshot tools: {', '.join(screenshot_tools)}")
+            else:
+                print("⚠️  No external screenshot tools found. Install scrot for better compatibility:")
+                print("   Ubuntu/Debian: sudo apt install scrot")
+                print("   Fedora: sudo dnf install scrot")
+                print("   Arch: sudo pacman -S scrot")
         
         elif self.platform == "Windows":
             try:
                 import pywinauto
+            except ImportError:
+                missing.append("pywinauto: pip install pywinauto")
+            
+            try:
                 import pygetwindow
-            except ImportError as e:
-                missing.append("Windows: pip install pywinauto pygetwindow")
+            except ImportError:
+                missing.append("pygetwindow: pip install pygetwindow")
         
         if missing:
-            print("Missing dependencies:")
+            print("❌ Missing dependencies:")
             for dep in missing:
-                print(f"  - {dep}")
+                print(f"   - {dep}")
             return False
+        
+        print("✅ All dependencies satisfied")
         return True
     
     def run(self):
