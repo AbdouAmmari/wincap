@@ -1,50 +1,78 @@
+# 🖼️ WinCap – Cross-Platform Screenshot Logger with Auto GIFs
 
-# 🖼️ WinCap – Terminal Screenshot Logger with Auto GIFs
-
-**WinCap** is a Python-based monitoring tool that helps you automatically capture and document terminal commands and their output. It listens for keyboard events, takes screenshots of your terminal window at critical points, and bundles them into animated GIFs for easy sharing and review.
+**WinCap** is a powerful Python-based monitoring tool that automatically captures and documents terminal commands and their output across **Windows and Linux**. It intelligently listens for keyboard events, takes screenshots of your selected window at critical moments, and creates animated GIFs for easy sharing and review.
 
 ---
 
 ## 🚀 Features
 
-✅ Select a visible window to monitor (e.g., Command Prompt, PowerShell, Bash, etc.)
-✅ Automatically detect when the **Enter** key is pressed inside that window
-✅ Take **two screenshots per command**:
+✅ **Cross-Platform Support** – Works seamlessly on Windows and Linux  
+✅ **Smart Window Selection** – Choose any visible window to monitor (terminals, IDEs, browsers, etc.)  
+✅ **Intelligent Screenshot Timing** – Automatically captures:
+* Screenshot when **Enter** is pressed (command executed)
+* Screenshot when typing resumes (output captured)
 
-* One right after pressing `Enter` (command executed)
-* One when typing begins again (output assumed complete)
-
-✅ Save typed commands in a log file
-✅ Combine screenshots into animated **GIFs** (every N screenshots)
-✅ Customizable number of frames per GIF
+✅ **Command Logging** – All typed commands saved with timestamps  
+✅ **Automated GIF Creation** – Combines screenshots into animated GIFs  
+✅ **Configurable Settings** – Customizable frames per GIF with persistent configuration  
+✅ **Real-time Monitoring** – Live status updates and manual screenshot capability  
+✅ **Professional Logging** – Comprehensive error handling and activity logging
 
 ---
 
-## 📦 Output
+## 🖥️ Platform Support
 
-* 📂 `screenshots/` → Individual PNG screenshots of each terminal event
-* 📂 `gifs/` → Animated GIFs containing N screenshots per GIF
-* 📄 `command_log.txt` → Plain-text log of all typed commands
+| Platform | Window Manager | Screenshot Method | Status |
+|----------|----------------|-------------------|--------|
+| **Windows** | pywinauto + pygetwindow | PIL ImageGrab | ✅ Fully Supported |
+| **Linux** | X11 (python-xlib) | pyscreenshot | ✅ Fully Supported |
+| **macOS** | - | - | ❌ Not yet supported |
+
+---
+
+## 📦 Output Structure
+
+```
+project/
+├── screenshots/          # Individual PNG screenshots
+│   ├── 20241226_143022_before_output.png
+│   ├── 20241226_143025_after_output.png
+│   └── 20241226_143030_manual.png
+├── gifs/                 # Animated GIFs (N frames each)
+│   ├── 20241226_143045.gif
+│   └── 20241226_143102.gif
+├── command_log.txt       # Timestamped command history
+├── monitor.log           # Application logs
+└── config.json           # Persistent settings
+```
 
 ---
 
 ## 🛠️ Installation
 
-1. Clone or download the repository:
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/AbdouAmmari/wincap
 cd wincap
 ```
 
-2. Install dependencies:
+### 2. Install Platform-Specific Dependencies
 
-**For Linux:**
+**For Linux (X11 required):**
 ```bash
+# Install Python packages
 pip install pyscreenshot python-xlib psutil pillow keyboard
-# Also ensure X11 development libraries are installed:
-# Ubuntu/Debian: sudo apt-get install python3-dev libx11-dev
-# Fedora/RHEL: sudo dnf install python3-devel libX11-devel
+
+# Install system dependencies
+# Ubuntu/Debian:
+sudo apt-get install python3-dev libx11-dev
+
+# Fedora/RHEL/CentOS:
+sudo dnf install python3-devel libX11-devel
+
+# Arch Linux:
+sudo pacman -S python libx11
 ```
 
 **For Windows:**
@@ -52,86 +80,198 @@ pip install pyscreenshot python-xlib psutil pillow keyboard
 pip install pywinauto pygetwindow pillow keyboard
 ```
 
-**Common dependencies:**
+**Cross-Platform Dependencies:**
 ```bash
 pip install pillow keyboard
 ```
 
-## Usage
-
-The usage is identical on both platforms:
+### 3. Verify Installation
 
 ```bash
-python window_monitor.py
+python crosscap.py
 ```
-
-The script will:
-1. Detect your operating system
-2. Load appropriate platform-specific modules
-3. Show available windows with their dimensions
-4. Allow you to select and monitor any window
-5. Capture screenshots and create GIFs based on keyboard activity
-
-This version maintains all the advanced features from the previous version while adding full Linux compatibility through X11 integration.
-
-> 🔒 On Windows, **run as Administrator** to allow global keyboard hooks.
 
 ---
 
 ## 🖥️ Usage
 
-```bash
-python WinCap.py
-```
-
-1. Select the terminal window you want to monitor from the list.
-2. Optionally enter how many screenshots you want per GIF (default: 10).
-3. Press `Enter` in the terminal — it will take the first screenshot.
-4. When you begin typing the next command, the second screenshot is taken.
-5. GIFs are created automatically after N screenshots.
-6. Press `ESC` to stop the tool.
-
----
-
-## 🎯 Ideal Use Cases
-
-* Capture demos or command-line tutorials
-* Generate visual logs of pentest sessions or security analysis
-* Debug command outputs with a visual timeline
-* Review or share CLI workflows in a portable format (GIF)
-
----
-
-## 📝 Example
-
-You run a command:
+### Basic Usage
 
 ```bash
-nmap -sV 192.168.1.1
+python wincap.py
 ```
 
-WinCap will:
+### Step-by-Step Process
 
-1. Save a screenshot when `Enter` is pressed.
-2. Wait until you start typing the next command.
-3. Save another screenshot (assumed to contain the output).
-4. After 10 screenshots, generate an animated GIF showing the process.
+1. **Platform Detection** – Automatically detects Windows or Linux
+2. **Window Selection** – Choose from available windows with size information
+3. **Configuration** – Set GIF frame count (saves automatically)
+4. **Monitoring** – Focus on selected window and start typing
+5. **Screenshot Capture** – Automatic screenshots on Enter key and typing resume
+6. **GIF Generation** – Automatic GIF creation after N screenshots
+7. **Exit** – Press ESC to stop monitoring
 
----
+### Hotkeys During Monitoring
 
-## ⚠️ Notes
-
-* Works on **Windows only** (uses `pywinauto` for accurate window bounds).
-* Must be run in a terminal with a **visible and named** window (like CMD, PowerShell, Windows Terminal).
-* Run as admin to allow key hooks (`keyboard` library requires this on Windows).
-* Supports simple typed input; special characters may not always be recorded perfectly.
-
----
-
-
-## 📃 License
-
-MIT License. Use responsibly and ethically.
+| Key | Action |
+|-----|--------|
+| `ESC` | Stop monitoring and exit |
+| `F1` | Display current status |
+| `F2` | Take manual screenshot |
 
 ---
 
+## 🔧 Configuration
+
+Settings are automatically saved in `config.json`:
+
+```json
+{
+  "gif_frame_count": 10,
+  "platform": "Linux",
+  "last_updated": "2024-12-26T14:30:22.123456"
+}
+```
+
+**Configurable Options:**
+- GIF frame count (1-50 screenshots per GIF)
+- Settings persist between sessions
+- Platform-specific optimizations
+
+---
+
+## 🎯 Use Cases
+
+### Development & DevOps
+- Document deployment processes
+- Capture build and test sequences
+- Create visual CI/CD documentation
+
+### Security & Testing
+- Record penetration testing sessions
+- Document vulnerability analysis
+- Create proof-of-concept demonstrations
+
+### Training & Tutorials
+- Generate step-by-step command tutorials
+- Create animated documentation
+- Share workflow demonstrations
+
+### Debugging & Support
+- Capture error reproduction steps
+- Document troubleshooting processes
+- Visual debugging timelines
+
+---
+
+## 📝 Example Workflow
+
+**Command Execution:**
+```bash
+$ nmap -sV 192.168.1.0/24
+Starting Nmap 7.80 ( https://nmap.org )
+[... scan results ...]
+Nmap done: 256 IP addresses scanned
+```
+
+**CrossCap Process:**
+1. 📸 Screenshot taken when `Enter` pressed
+2. ⏳ Waits for command completion
+3. 📸 Screenshot taken when you start typing next command
+4. 🎞️ After 10 screenshots → Automatic GIF creation
+5. 📝 Command logged with timestamp
+
+---
+
+## 🐧 Linux-Specific Notes
+
+- **X11 Required** – Currently supports X11 display server only
+- **Wayland Support** – Not yet implemented (X11 compatibility mode may work)
+- **Permissions** – May require running with appropriate X11 permissions
+- **Display Variables** – Ensure `DISPLAY` environment variable is set
+
+---
+
+## 🪟 Windows-Specific Notes
+
+- **Administrator Rights** – Required for global keyboard hooks
+- **Window Detection** – Uses Windows API for accurate window management
+- **Compatibility** – Works with CMD, PowerShell, Windows Terminal, WSL
+
+---
+
+## 🔒 Security & Privacy
+
+- **Local Processing** – All data remains on your machine
+- **No Network Access** – Tool operates entirely offline
+- **Sensitive Data** – Be cautious when monitoring windows with passwords/keys
+- **Log Management** – Regularly review and clean command logs
+
+---
+
+## 🚀 Advanced Features
+
+### Professional Logging
+```python
+# Comprehensive logging system
+2024-12-26 14:30:22 - INFO - Screenshot saved: 20241226_143022_001.png
+2024-12-26 14:30:25 - INFO - GIF created: 20241226_143025.gif (2.3MB)
+```
+
+### Threading & Performance
+- Non-blocking GIF creation
+- Optimized image processing
+- Memory management for long sessions
+
+### Error Recovery
+- Graceful window loss handling
+- Automatic screenshot optimization
+- Platform-specific error recovery
+
+---
+
+## ⚠️ Limitations
+
+- **macOS Support** – Not yet implemented
+- **Wayland** – Linux Wayland compositor not supported
+- **Remote Sessions** – May not work properly over SSH/RDP without display forwarding
+- **Special Characters** – Complex keyboard layouts may need adjustment
+
+---
+
+## 🐛 Troubleshooting
+
+### Linux Issues
+```bash
+# X11 connection issues
+export DISPLAY=:0
+
+# Permission issues
+xhost +local:
+
+# Missing dependencies
+pip install --upgrade pyscreenshot python-xlib
+```
+
+### Windows Issues
+```bash
+# Run as Administrator for keyboard hooks
+# Ensure pywinauto dependencies are installed
+pip install --upgrade pywinauto pygetwindow
+```
+
+### Common Issues
+- **No windows detected** – Ensure target windows are visible and named
+- **Screenshots not saving** – Check directory permissions
+- **Keyboard not responding** – Verify administrator/root permissions
+
+
+---
+
+## 📄 License
+
+MIT License - Use responsibly and ethically.
+
+---
+
+**Made with ❤️ for developers, security professionals, and anyone who needs to document their command-line workflows visually.**
