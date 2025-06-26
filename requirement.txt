@@ -1,0 +1,4 @@
+pillow
+pywinauto
+pygetwindow
+keyboard
