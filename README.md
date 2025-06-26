@@ -22,7 +22,7 @@
 
 ## 📦 Output
 
-* 📂 `screenshots_on_enter/` → Individual PNG screenshots of each terminal event
+* 📂 `screenshots/` → Individual PNG screenshots of each terminal event
 * 📂 `gifs/` → Animated GIFs containing N screenshots per GIF
 * 📄 `command_log.txt` → Plain-text log of all typed commands
 
