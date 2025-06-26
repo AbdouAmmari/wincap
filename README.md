@@ -34,13 +34,13 @@
 
 ```bash
 git clone https://github.com/AbdouAmmari/wincap
-cd termshot
+cd wincap
 ```
 
 2. Install dependencies:
 
 ```bash
-pip install pillow pywinauto pygetwindow keyboard
+pip install -r requirements.txt
 ```
 
 > 🔒 On Windows, **run as Administrator** to allow global keyboard hooks.
